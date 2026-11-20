@@ -61,9 +61,12 @@ public class Animation {
         return paused ? pausedAt : clock.getAsLong();
     }
 
+    private long elapsed() {
+        return getTime() - startTime;
+    }
+
     private double progress() {
-        long elapsed = getTime() - startTime;
-        double progress = (double) elapsed / durationMillis;
+        double progress = (double) elapsed() / durationMillis;
         return Math.clamp(direction == Direction.FORWARD ? progress : 1 - progress, 0.0, 1.0);
     }
 
@@ -75,6 +78,14 @@ public class Animation {
         }
 
         return easing.apply(progress());
+    }
+
+    public boolean isRunning() {
+        return started && !paused && !isFinished();
+    }
+
+    public boolean isFinished() {
+        return started && (elapsed() >= durationMillis);
     }
 
     public static final class Builder {

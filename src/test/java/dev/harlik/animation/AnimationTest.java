@@ -271,4 +271,112 @@ class AnimationTest {
             assertEquals(0.45, anim.value(), EPSILON);  // both pauses skipped
         }
     }
+
+    @Nested
+    class Status {
+
+        @Test
+        void neitherRunningNorFinishedBeforeStart() {
+            Animation anim = linear(400);
+
+            assertFalse(anim.isRunning());
+            assertFalse(anim.isFinished());
+        }
+
+        @Test
+        void runningWhilePlaying() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);
+
+            assertTrue(anim.isRunning());
+            assertFalse(anim.isFinished());
+        }
+
+        @Test
+        void notFinishedOneMillisecondBeforeTheEnd() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(399);
+
+            assertFalse(anim.isFinished());
+        }
+
+        @Test
+        void finishedAtTheEnd() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(400);
+
+            assertTrue(anim.isFinished());
+            assertFalse(anim.isRunning());
+        }
+
+        @Test
+        void pausedIsNeitherRunningNorFinished() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);
+            anim.pause();
+            now.addAndGet(1_000);                       // way past the duration, but paused
+
+            assertFalse(anim.isRunning());
+            assertFalse(anim.isFinished());
+        }
+
+        @Test
+        void runningAgainAfterResume() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);
+            anim.pause();
+            now.addAndGet(1_000);
+
+            anim.resume();
+
+            assertTrue(anim.isRunning());
+            assertFalse(anim.isFinished());
+        }
+
+        @Test
+        void reverseAfterFinishingRunsUntilZero() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(400);
+            assertTrue(anim.isFinished());
+
+            anim.reverse();
+            assertTrue(anim.isRunning());
+            assertFalse(anim.isFinished());
+
+            now.addAndGet(399);
+            assertFalse(anim.isFinished());
+
+            now.addAndGet(1);
+            assertTrue(anim.isFinished());
+        }
+
+        @Test
+        void reverseMidwayFinishesSooner() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);                         // 0.3
+
+            anim.reverse();                             // 120ms back to 0
+            now.addAndGet(119);
+            assertFalse(anim.isFinished());
+
+            now.addAndGet(1);
+            assertTrue(anim.isFinished());
+        }
+
+        @Test
+        void zeroDurationIsFinishedImmediately() {
+            Animation anim = linear(0);
+            anim.forward();
+
+            assertTrue(anim.isFinished());
+            assertFalse(anim.isRunning());
+        }
+    }
 }
