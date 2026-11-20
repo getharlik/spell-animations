@@ -1,6 +1,7 @@
 package dev.harlik.animation;
 
 import dev.harlik.animation.easing.Easing;
+import lombok.Getter;
 
 import java.util.function.LongSupplier;
 
@@ -13,6 +14,9 @@ public class Animation {
 
     private long startTime;
     private boolean started;
+    @Getter
+    private boolean paused;
+    private long pausedAt;
 
     private Animation(Builder builder) {
         this.durationMillis = builder.durationMillis;
@@ -28,19 +32,37 @@ public class Animation {
     public void forward() {
         double p = started ? progress() : 0;
         direction = Direction.FORWARD;
-        startTime = clock.getAsLong() - Math.round(p * durationMillis);
+        startTime = getTime() - Math.round(p * durationMillis);
         started = true;
     }
 
     public void reverse() {
         double p = started ? progress() : 1;
         direction = Direction.REVERSE;
-        startTime = clock.getAsLong() - Math.round((1 - p) * durationMillis);
+        startTime = getTime() - Math.round((1 - p) * durationMillis);
         started = true;
     }
 
+    public void pause() {
+        if (started && !paused) {
+            pausedAt = clock.getAsLong();
+            paused = true;
+        }
+    }
+
+    public void resume() {
+        if (paused) {
+            startTime += clock.getAsLong() - pausedAt;
+            paused = false;
+        }
+    }
+
+    private long getTime() {
+        return paused ? pausedAt : clock.getAsLong();
+    }
+
     private double progress() {
-        long elapsed = clock.getAsLong() - startTime;
+        long elapsed = getTime() - startTime;
         double progress = (double) elapsed / durationMillis;
         return Math.clamp(direction == Direction.FORWARD ? progress : 1 - progress, 0.0, 1.0);
     }
