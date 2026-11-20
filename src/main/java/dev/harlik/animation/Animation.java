@@ -1,7 +1,6 @@
 package dev.harlik.animation;
 
 import dev.harlik.animation.easing.Easing;
-import lombok.Getter;
 
 import java.util.function.LongSupplier;
 
@@ -10,19 +9,13 @@ public class Animation {
     private final long durationMillis;
     private final Easing easing;
     private Direction direction;
-    private final LongSupplier clock;
-
-    private long startTime;
-    private boolean started;
-    @Getter
-    private boolean paused;
-    private long pausedAt;
+    private final Stopwatch stopwatch;
 
     private Animation(Builder builder) {
         this.durationMillis = builder.durationMillis;
         this.easing = builder.easing;
+        this.stopwatch = new Stopwatch(builder.clock);
         this.direction = Direction.FORWARD;
-        this.clock = builder.clock;
     }
 
     public static Builder builder() {
@@ -30,48 +23,36 @@ public class Animation {
     }
 
     public void forward() {
-        double p = started ? progress() : 0;
+        double p = stopwatch.isStarted() ? progress() : 0;
         direction = Direction.FORWARD;
-        startTime = getTime() - Math.round(p * durationMillis);
-        started = true;
+        stopwatch.setElapsed(Math.round(p * durationMillis));
     }
 
     public void reverse() {
-        double p = started ? progress() : 1;
+        double p = stopwatch.isStarted() ? progress() : 1;
         direction = Direction.REVERSE;
-        startTime = getTime() - Math.round((1 - p) * durationMillis);
-        started = true;
+        stopwatch.setElapsed(Math.round((1 - p) * durationMillis));
     }
 
     public void pause() {
-        if (started && !paused) {
-            pausedAt = clock.getAsLong();
-            paused = true;
-        }
+        stopwatch.pause();
     }
 
     public void resume() {
-        if (paused) {
-            startTime += clock.getAsLong() - pausedAt;
-            paused = false;
-        }
+        stopwatch.resume();
     }
 
-    private long getTime() {
-        return paused ? pausedAt : clock.getAsLong();
-    }
-
-    private long elapsed() {
-        return getTime() - startTime;
+    public boolean isPaused() {
+        return stopwatch.isPaused();
     }
 
     private double progress() {
-        double progress = (double) elapsed() / durationMillis;
+        double progress = (double) stopwatch.elapsed() / durationMillis;
         return Math.clamp(direction == Direction.FORWARD ? progress : 1 - progress, 0.0, 1.0);
     }
 
     public double value() {
-        if (!started) return 0.0;
+        if (!stopwatch.isStarted()) return 0.0;
 
         if (durationMillis == 0) {
             return easing.apply(direction == Direction.FORWARD ? 1.0 : 0.0);
@@ -81,11 +62,11 @@ public class Animation {
     }
 
     public boolean isRunning() {
-        return started && !paused && !isFinished();
+        return stopwatch.isStarted() && !stopwatch.isPaused() && !isFinished();
     }
 
     public boolean isFinished() {
-        return started && (elapsed() >= durationMillis);
+        return stopwatch.isStarted() && (stopwatch.elapsed() >= durationMillis);
     }
 
     public static final class Builder {
