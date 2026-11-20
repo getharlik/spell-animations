@@ -1,12 +1,12 @@
 package dev.harlik.animation;
 
-import dev.harlik.animation.easing.Easing;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class AnimationTest {
 
@@ -16,7 +16,7 @@ class AnimationTest {
 
     @BeforeEach
     void setUp() {
-        now = new AtomicLong(0);
+        now = new AtomicLong(1_000_000);
     }
 
     private Animation linear(long durationMillis) {
@@ -26,119 +26,249 @@ class AnimationTest {
                 .build();
     }
 
-    @Test
-    void isZeroBeforeStart() {
-        Animation anim = linear(400);
+    @Nested
+    class Forward {
 
-        assertEquals(0.0, anim.value(), EPSILON);
+        @Test
+        void isZeroBeforeStart() {
+            Animation anim = linear(400);
+
+            assertEquals(0.0, anim.value(), EPSILON);
+        }
+
+        @Test
+        void isZeroRightAfterStart() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            assertEquals(0.0, anim.value(), EPSILON);
+        }
+
+        @Test
+        void isHalfwayAtHalfTime() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            now.addAndGet(200);
+
+            assertEquals(0.5, anim.value(), EPSILON);
+        }
+
+        @Test
+        void isOneAtTheEnd() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            now.addAndGet(400);
+
+            assertEquals(1.0, anim.value(), EPSILON);
+        }
+
+        @Test
+        void staysAtOneAfterTheEnd() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            now.addAndGet(10_000);
+
+            assertEquals(1.0, anim.value(), EPSILON);
+        }
+
+        @Test
+        void zeroDurationFinishesImmediately() {
+            Animation anim = linear(0);
+            anim.forward();
+
+            assertEquals(1.0, anim.value(), EPSILON);
+        }
     }
 
-    @Test
-    void isZeroRightAfterStart() {
-        Animation anim = linear(400);
-        anim.forward();
+    @Nested
+    class Reverse {
 
-        assertEquals(0.0, anim.value(), EPSILON);
+        @Test
+        void movesFromOneToZero() {
+            Animation anim = linear(400);
+            anim.reverse();
+
+            assertEquals(1.0, anim.value(), EPSILON);
+            now.addAndGet(200);
+            assertEquals(0.5, anim.value(), EPSILON);
+            now.addAndGet(200);
+            assertEquals(0.0, anim.value(), EPSILON);
+        }
+
+        @Test
+        void continuesFromCurrentValue() {
+            Animation anim = linear(400);
+
+            anim.forward();
+            now.addAndGet(120);                       // 0.3
+
+            anim.reverse();
+            assertEquals(0.3, anim.value(), EPSILON); // no jump
+
+            now.addAndGet(60);
+            assertEquals(0.15, anim.value(), EPSILON); // going down
+
+            now.addAndGet(60);
+            assertEquals(0.0, anim.value(), EPSILON);  // took 120ms back, not 400
+        }
+
+        @Test
+        void canReverseAfterFinishing() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(1_000);                      // fully open, then idle
+
+            anim.reverse();
+            assertEquals(1.0, anim.value(), EPSILON);  // starts closing from open
+
+            now.addAndGet(100);
+            assertEquals(0.75, anim.value(), EPSILON);
+        }
+
+        @Test
+        void zeroDurationFinishesImmediately() {
+            Animation anim = linear(0);
+            anim.reverse();
+
+            assertEquals(0.0, anim.value(), EPSILON);
+        }
     }
 
-    @Test
-    void isHalfwayAtHalfTime() {
-        Animation anim = linear(400);
-        anim.forward();
+    @Nested
+    class WithEasing {
 
-        now.addAndGet(200);
+        @Test
+        void appliesTheEasing() {
+            Animation anim = Animation.builder()
+                    .duration(400)
+                    .easing(t -> t * t)
+                    .clock(now::get)
+                    .build();
+            anim.forward();
 
-        assertEquals(0.5, anim.value(), EPSILON);
+            now.addAndGet(200);
+            assertEquals(0.25, anim.value(), EPSILON);
+        }
     }
 
-    @Test
-    void isOneAtTheEnd() {
-        Animation anim = linear(400);
-        anim.forward();
+    @Nested
+    class Paused {
 
-        now.addAndGet(400);
+        @Test
+        void freezesValue() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);                         // 0.3
 
-        assertEquals(1.0, anim.value(), EPSILON);
-    }
+            anim.pause();
+            now.addAndGet(1_000);
 
-    @Test
-    void staysAtOneAfterTheEnd() {
-        Animation anim = linear(400);
-        anim.forward();
+            assertEquals(0.3, anim.value(), EPSILON);
+        }
 
-        now.addAndGet(10_000);
+        @Test
+        void resumeContinuesFromPausedValue() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);                         // 0.3
+            anim.pause();
+            now.addAndGet(1_000);
 
-        assertEquals(1.0, anim.value(), EPSILON);
-    }
+            anim.resume();
+            assertEquals(0.3, anim.value(), EPSILON);   // no jump on resume
 
-    @Test
-    void zeroDurationFinishesImmediately() {
-        Animation anim = linear(0);
-        anim.forward();
+            now.addAndGet(60);
+            assertEquals(0.45, anim.value(), EPSILON);  // the 1000ms pause didn't count
+        }
 
-        assertEquals(1.0, anim.value(), EPSILON);
-    }
+        @Test
+        void pausingTwiceDoesNotLoseTime() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);                         // 0.3
+            anim.pause();
+            now.addAndGet(300);
+            anim.pause();                               // already paused: must be ignored
+            now.addAndGet(300);
 
-    @Test
-    void zeroDurationReverseFinishesImmediately() {
-        Animation anim = linear(0);
-        anim.reverse();
+            anim.resume();
+            now.addAndGet(60);
 
-        assertEquals(0.0, anim.value(), EPSILON);
-    }
+            assertEquals(0.45, anim.value(), EPSILON);
+        }
 
-    @Test
-    void appliesTheEasing() {
-        Animation anim = Animation.builder()
-                .duration(400)
-                .easing(t -> t * t)
-                .clock(now::get)
-                .build();
-        anim.forward();
+        @Test
+        void resumeWithoutPauseDoesNothing() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);
 
-        now.addAndGet(200);
-        assertEquals(0.25, anim.value(), EPSILON);
-    }
+            anim.resume();
 
-    @Test
-    void movesReverse() {
-        Animation anim = linear(400);
-        anim.reverse();
+            assertEquals(0.3, anim.value(), EPSILON);
+            assertFalse(anim.isPaused());
+        }
 
-        assertEquals(1, anim.value(), EPSILON);
-        now.addAndGet(200);
-        assertEquals(0.5, anim.value(), EPSILON);
-        now.addAndGet(200);
-        assertEquals(0, anim.value(), EPSILON);
-    }
+        @Test
+        void doesNothingBeforeStart() {
+            Animation anim = linear(400);
 
-    @Test
-    void reverseContinuesFromCurrentValue() {
-        Animation anim = linear(400);
+            anim.pause();
+            assertFalse(anim.isPaused());
 
-        anim.forward();
-        now.addAndGet(120);                       // 0.3
+            anim.forward();
+            now.addAndGet(100);
+            assertEquals(0.25, anim.value(), EPSILON);  // runs normally
+        }
 
-        anim.reverse();
-        assertEquals(0.3, anim.value(), EPSILON); // no jump
+        @Test
+        void isPausedReflectsState() {
+            Animation anim = linear(400);
+            anim.forward();
+            assertFalse(anim.isPaused());
 
-        now.addAndGet(60);
-        assertEquals(0.15, anim.value(), EPSILON); // going down
+            anim.pause();
+            assertTrue(anim.isPaused());
 
-        now.addAndGet(60);
-        assertEquals(0.0, anim.value(), EPSILON);  // took 120ms back, not 400
-    }
+            anim.resume();
+            assertFalse(anim.isPaused());
+        }
 
-    @Test
-    void canReverseAfterFinishing() {
-        Animation anim = linear(400);
-        anim.forward();
-        now.addAndGet(1_000);                      // fully open, then idle
+        @Test
+        void reverseStaysFrozenUntilResume() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);                         // 0.3
+            anim.pause();
 
-        anim.reverse();
-        assertEquals(1.0, anim.value(), EPSILON);  // starts closing from open
+            anim.reverse();
+            now.addAndGet(500);
+            assertEquals(0.3, anim.value(), EPSILON);   // still paused, still 0.3
+            assertTrue(anim.isPaused());
 
-        now.addAndGet(100);
-        assertEquals(0.75, anim.value(), EPSILON);
+            anim.resume();
+            now.addAndGet(60);
+            assertEquals(0.15, anim.value(), EPSILON);  // continues downwards
+        }
+
+        @Test
+        void canPauseAgainAfterResume() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(40);                          // 0.1
+            anim.pause();
+            now.addAndGet(500);
+            anim.resume();
+            now.addAndGet(80);                          // 0.3
+            anim.pause();
+            now.addAndGet(500);
+            anim.resume();
+            now.addAndGet(60);
+
+            assertEquals(0.45, anim.value(), EPSILON);  // both pauses skipped
+        }
     }
 }
