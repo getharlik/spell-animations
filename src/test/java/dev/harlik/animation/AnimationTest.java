@@ -155,6 +155,80 @@ class AnimationTest {
     }
 
     @Nested
+    class InRange {
+
+        @Test
+        void isStartBeforeStart() {
+            Animation anim = linear(400);
+
+            assertEquals(100.0, anim.value(100, 350), EPSILON);
+        }
+
+        @Test
+        void isHalfwayAtHalfTime() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            now.addAndGet(200);
+
+            assertEquals(225.0, anim.value(100, 350), EPSILON);
+        }
+
+        @Test
+        void isEndAtTheEnd() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            now.addAndGet(400);
+
+            assertEquals(350.0, anim.value(100, 350), EPSILON);
+        }
+
+        @Test
+        void reverseMovesFromEndToStart() {
+            Animation anim = linear(400);
+            anim.reverse();
+
+            assertEquals(350.0, anim.value(100, 350), EPSILON);
+            now.addAndGet(200);
+            assertEquals(225.0, anim.value(100, 350), EPSILON);
+            now.addAndGet(200);
+            assertEquals(100.0, anim.value(100, 350), EPSILON);
+        }
+
+        @Test
+        void appliesTheEasingOnce() {
+            Animation anim = Animation.builder()
+                    .duration(400)
+                    .easing(t -> t * t)
+                    .clock(now::get)
+                    .build();
+            anim.forward();
+
+            now.addAndGet(200);                                    // eased to 0.25
+            assertEquals(162.5, anim.value(100, 350), EPSILON);
+        }
+
+        @Test
+        void canCountDown() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            now.addAndGet(100);
+
+            assertEquals(287.5, anim.value(350, 100), EPSILON);   // end below start
+        }
+
+        @Test
+        void zeroDurationFinishesImmediately() {
+            Animation anim = linear(0);
+            anim.forward();
+
+            assertEquals(350.0, anim.value(100, 350), EPSILON);
+        }
+    }
+
+    @Nested
     class Paused {
 
         @Test

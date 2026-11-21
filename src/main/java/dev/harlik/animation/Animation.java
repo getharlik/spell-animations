@@ -119,6 +119,21 @@ public class Animation {
     }
 
     /**
+     * Returns the current value in the range that you set, with the easing applied.
+     * <p>
+     * Returns {@code start} value before the animation is started. Once it reaches the end, it
+     * stays at {@code end} (forward) or {@code start} (reverse).
+     *
+     * @param start the starting value of the animation
+     * @param end the end value of the animation
+     * @return the current value, between {@code start} and {@code end} for the
+     *         built-in easings
+     */
+    public double value(double start, double end) {
+        return start + (end - start) * value();
+    }
+
+    /**
      * @return {@code true} if the animation has been started, is not paused
      *         and has not reached its end yet
      */

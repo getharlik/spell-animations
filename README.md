@@ -24,10 +24,10 @@ while (!fadeIn.isFinished()) {
 }
 ```
 
-To animate between any two numbers, scale the value:
+To animate between any two numbers, use ```value()```'s overload:
 
 ```java
-double x = startX + (endX - startX) * slide.value();
+double x = slide.value(100, 350);
 ```
 
 ## Installation
