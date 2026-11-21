@@ -1,6 +1,7 @@
 package dev.harlik.animation;
 
 import dev.harlik.animation.easing.Easing;
+import lombok.Getter;
 
 import java.util.function.LongSupplier;
 
@@ -26,6 +27,7 @@ public class Animation {
 
     private final long durationMillis;
     private final Easing easing;
+    @Getter
     private Direction direction;
     private final Stopwatch stopwatch;
 
@@ -183,6 +185,7 @@ public class Animation {
          * @return this builder
          */
         public Builder duration(long millis) {
+            if (millis < 0) throw new IllegalArgumentException("Duration must be > 0");
             this.durationMillis = millis;
             return this;
         }
@@ -196,6 +199,7 @@ public class Animation {
          * @return this builder
          */
         public Builder easing(Easing easing) {
+            if  (easing == null) throw new IllegalArgumentException("Easing cannot be null");
             this.easing = easing;
             return this;
         }
@@ -213,6 +217,7 @@ public class Animation {
          * @return this builder
          */
         public Builder clock(LongSupplier clock) {
+            if (clock == null) throw new IllegalArgumentException("Clock cannot be null");
             this.clock = clock;
             return this;
         }
