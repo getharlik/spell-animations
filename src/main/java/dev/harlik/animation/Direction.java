@@ -1,6 +1,6 @@
 package dev.harlik.animation;
 
-public enum Direction {
+enum Direction {
     FORWARD,
     REVERSE,
 }

@@ -1,7 +1,6 @@
 package dev.harlik.animation;
 
 import dev.harlik.animation.easing.Easing;
-import lombok.Getter;
 
 import java.util.function.LongSupplier;
 
@@ -27,7 +26,6 @@ public class Animation {
 
     private final long durationMillis;
     private final Easing easing;
-    @Getter
     private Direction direction;
     private final Stopwatch stopwatch;
 
@@ -177,6 +175,20 @@ public class Animation {
     }
 
     /**
+     * Tells which way the animation plays: towards {@code 0.0} after
+     * {@link #reverse()}, towards {@code 1.0} after {@link #forward()}.
+     * <p>
+     * This is the direction only, not whether it is moving. A paused or
+     * finished animation still reports the direction it was last played in.
+     *
+     * @return {@code true} if {@link #reverse()} was called more recently than
+     *         {@link #forward()}; {@code false} before the animation is started
+     */
+    public boolean isReversed() {
+        return direction == Direction.REVERSE;
+    }
+
+    /**
      * @return {@code true} if {@link #pause()} was called and
      *         {@link #resume()} has not been called since
      */
@@ -218,7 +230,7 @@ public class Animation {
          * @return this builder
          */
         public Builder duration(long millis) {
-            if (millis < 0) throw new IllegalArgumentException("Duration must be > 0");
+            if (millis < 0) throw new IllegalArgumentException("Duration must be >= 0, got " + millis);
             this.durationMillis = millis;
             return this;
         }
