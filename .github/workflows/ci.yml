@@ -1,0 +1,23 @@
+name: ci
+on: [pull_request, push]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B verify
+
+      - name: Check the Javadoc
+        run: mvn -B javadoc:javadoc

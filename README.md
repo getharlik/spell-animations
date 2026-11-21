@@ -24,10 +24,10 @@ while (!fadeIn.isFinished()) {
 }
 ```
 
-To animate between any two numbers, use ```value()```'s overload:
+To animate between any two numbers, pass them to `value()`:
 
 ```java
-double x = slide.value(100, 350);
+double x = slide.value(100, 350);   // 100 at the start, 350 at the end
 ```
 
 ## Installation
@@ -53,6 +53,20 @@ Then add it to your project's `pom.xml`:
 ```
 
 ## Features
+
+### Settings
+
+| Builder method   | Default      | Notes                                                    |
+|------------------|--------------|----------------------------------------------------------|
+| `duration(ms)`   | `400`        | `0` jumps straight to the end. Negative values throw.    |
+| `easing(easing)` | `LINEAR`     | See [Easings](#easings). `null` throws.                  |
+| `clock(clock)`   | system clock | See [Testing your animations](#testing-your-animations). |
+
+Invalid values throw `IllegalArgumentException` from the builder. A duration of `0` is handy for turning animations off, for example when the user prefers reduced motion:
+
+```java
+Animation.builder().duration(reducedMotion ? 0 : 300).build();
+```
 
 ### Easings
 
@@ -81,12 +95,23 @@ anim.pause();     // value freezes
 anim.resume();    // continues; the paused time doesn't count
 ```
 
+### Jump to a point
+
+```java
+anim.seek(0.5);     // jump to halfway in time and keep playing from there
+anim.progress();    // 0.5, the time progress before the easing
+anim.value();       // the eased value at that point
+```
+
+`seek()` and `progress()` use the same scale in both directions: `0.0` is the start and `1.0` is the end. Seeking keeps the current direction, and a paused animation stays paused. Values outside `0..1` are clamped. This is useful for scrubbing with a slider.
+
 ### Status
 
 ```java
 anim.isRunning();   // started, not paused, not at the end yet
 anim.isPaused();
 anim.isFinished();  // reached 1.0 (forward) or 0.0 (reverse)
+anim.isReversed();  // reverse() was called more recently than forward()
 ```
 
 ## Testing your animations
