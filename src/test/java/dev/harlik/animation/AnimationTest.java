@@ -1,5 +1,7 @@
 package dev.harlik.animation;
 
+import dev.harlik.animation.easing.Easing;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -134,6 +136,151 @@ class AnimationTest {
             anim.reverse();
 
             assertEquals(0.0, anim.value(), EPSILON);
+        }
+    }
+
+    @Nested
+    class Seeking {
+
+        @Test
+        void jumpsAndKeepsPlayingForward() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            anim.seek(0.3);
+            assertEquals(0.3, anim.progress(), EPSILON);
+
+            now.addAndGet(100);
+            assertEquals(0.55, anim.progress(), EPSILON);  // continues upwards
+        }
+
+        @Test
+        void jumpsAndKeepsPlayingInReverse() {
+            Animation anim = linear(400);
+            anim.reverse();
+
+            anim.seek(0.3);
+            assertEquals(0.3, anim.progress(), EPSILON);   // same point as forward
+
+            now.addAndGet(60);
+            assertEquals(0.15, anim.progress(), EPSILON);  // continues downwards
+        }
+
+        @Test
+        void valueIsEasedAtTheNewPoint() {
+            Animation anim = Animation.builder()
+                    .duration(400)
+                    .easing(t -> t * t)
+                    .clock(now::get)
+                    .build();
+            anim.forward();
+
+            anim.seek(0.5);
+
+            assertEquals(0.25, anim.value(), EPSILON);
+        }
+
+        @Test
+        void staysPausedAfterSeeking() {
+            Animation anim = linear(400);
+            anim.forward();
+            anim.pause();
+
+            anim.seek(0.5);
+            now.addAndGet(1_000);
+            assertEquals(0.5, anim.progress(), EPSILON);   // frozen at the new point
+            assertTrue(anim.isPaused());
+
+            anim.resume();
+            now.addAndGet(100);
+            assertEquals(0.75, anim.progress(), EPSILON);
+        }
+
+        @Test
+        void startsPlayingForwardIfNotStarted() {
+            Animation anim = linear(400);
+
+            anim.seek(0.5);
+            assertTrue(anim.isRunning());
+
+            now.addAndGet(100);
+            assertEquals(0.75, anim.progress(), EPSILON);
+        }
+
+        @Test
+        void clampsBelowZero() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            anim.seek(-0.5);
+            assertEquals(0.0, anim.progress(), EPSILON);
+
+            now.addAndGet(100);
+            assertEquals(0.25, anim.progress(), EPSILON);  // no hidden delay
+        }
+
+        @Test
+        void clampsAboveOne() {
+            Animation anim = linear(400);
+            anim.forward();
+
+            anim.seek(1.5);
+
+            assertEquals(1.0, anim.progress(), EPSILON);
+            assertTrue(anim.isFinished());
+        }
+
+        @Test
+        void clampsAboveOneInReverse() {
+            Animation anim = linear(400);
+            anim.reverse();
+
+            anim.seek(1.5);
+
+            assertEquals(1.0, anim.progress(), EPSILON);   // back at the top, not finished
+            assertFalse(anim.isFinished());
+        }
+    }
+
+    @Nested
+    class Progress {
+
+        @Test
+        void isZeroBeforeStart() {
+            Animation anim = linear(400);
+
+            assertEquals(0.0, anim.progress(), EPSILON);
+        }
+
+        @Test
+        void ignoresTheEasing() {
+            Animation anim = Animation.builder()
+                    .duration(400)
+                    .easing(Easing.cubicBezier(0.34, 1.56, 0.64, 1))  // overshoots past 1.0
+                    .clock(now::get)
+                    .build();
+            anim.forward();
+
+            now.addAndGet(200);
+
+            assertEquals(0.5, anim.progress(), EPSILON);
+            assertTrue(anim.value() > 1.0);
+        }
+
+        @Test
+        void zeroDurationIsOneForward() {
+            Animation anim = linear(0);
+            anim.forward();
+
+            assertEquals(1.0, anim.progress(), EPSILON);
+        }
+
+        @Test
+        void zeroDurationIsZeroInReverse() {
+            Animation anim = linear(0);
+            anim.reverse();
+
+            assertEquals(0.0, anim.progress(), EPSILON);
         }
     }
 

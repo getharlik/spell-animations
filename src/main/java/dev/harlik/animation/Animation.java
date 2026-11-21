@@ -96,7 +96,46 @@ public class Animation {
         stopwatch.resume();
     }
 
-    private double progress() {
+    /**
+     * Jumps to a point in the animation and keeps playing from there.
+     * <p>
+     * {@code progress} is how much of the duration has passed, before the
+     * easing is applied: {@code 0.0} is the start, {@code 0.5} is halfway in
+     * time and {@code 1.0} is the end. It means the same point in both
+     * directions, so {@code seek(0.25)} lands in the same place whether the
+     * animation is playing forwards or backwards.
+     * <p>
+     * The direction does not change. If the animation is paused, it jumps and
+     * stays paused. If it has not been started yet, it starts playing forwards
+     * from {@code progress}. Values outside {@code 0..1} are clamped.
+     *
+     * @param progress where to jump, from {@code 0.0} (start) to {@code 1.0} (end)
+     */
+    public void seek(double progress) {
+        progress = Math.clamp(progress, 0.0, 1.0);
+        double p = direction == Direction.FORWARD ? progress : 1 - progress;
+        stopwatch.setElapsed(Math.round(p * durationMillis));
+    }
+
+    /**
+     * Returns how much of the duration has passed, without the easing applied.
+     * <p>
+     * This is the time progress that {@link #value()} passes to the easing. It
+     * changes at a constant speed and never leaves {@code 0.0..1.0}, even if
+     * the easing overshoots. It uses the same scale as {@link #seek(double)}.
+     * <p>
+     * {@code 0.0} before the animation is started. Once it reaches the end, it
+     * stays at {@code 1.0} (forward) or {@code 0.0} (reverse).
+     *
+     * @return the time progress, from {@code 0.0} to {@code 1.0}
+     */
+    public double progress() {
+        if (!stopwatch.isStarted()) return 0.0;
+
+        if (durationMillis == 0) {
+            return direction == Direction.FORWARD ? 1.0 : 0.0;
+        }
+
         double progress = (double) stopwatch.elapsed() / durationMillis;
         return Math.clamp(direction == Direction.FORWARD ? progress : 1 - progress, 0.0, 1.0);
     }
@@ -111,12 +150,6 @@ public class Animation {
      *         built-in easings
      */
     public double value() {
-        if (!stopwatch.isStarted()) return 0.0;
-
-        if (durationMillis == 0) {
-            return easing.apply(direction == Direction.FORWARD ? 1.0 : 0.0);
-        }
-
         return easing.apply(progress());
     }
 
