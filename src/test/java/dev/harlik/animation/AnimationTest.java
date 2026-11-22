@@ -243,6 +243,174 @@ class AnimationTest {
     }
 
     @Nested
+    class Delay {
+
+        private Animation delayed(long durationMillis, long delayMillis) {
+            return Animation.builder()
+                    .duration(durationMillis)
+                    .delay(delayMillis)
+                    .clock(now::get)
+                    .build();
+        }
+
+        @Test
+        void staysAtStartDuringDelay() {
+            Animation anim = delayed(400, 200);
+            anim.forward();
+
+            now.addAndGet(199);
+
+            assertEquals(0.0, anim.value(), EPSILON);
+        }
+
+        @Test
+        void startsMovingAfterDelay() {
+            Animation anim = delayed(400, 200);
+            anim.forward();
+
+            now.addAndGet(200);
+            assertEquals(0.0, anim.value(), EPSILON);   // the wait just ended
+
+            now.addAndGet(100);
+            assertEquals(0.25, anim.value(), EPSILON);
+        }
+
+        @Test
+        void doesNotShortenTheDuration() {
+            Animation anim = delayed(400, 200);
+            anim.forward();
+
+            now.addAndGet(599);
+            assertFalse(anim.isFinished());
+
+            now.addAndGet(1);
+            assertTrue(anim.isFinished());
+        }
+
+        @Test
+        void isRunningDuringDelay() {
+            Animation anim = delayed(400, 200);
+            anim.forward();
+
+            now.addAndGet(100);
+
+            assertTrue(anim.isRunning());
+            assertFalse(anim.isFinished());
+        }
+
+        @Test
+        void callingForwardEveryFrameDoesNotRestartDelay() {
+            Animation anim = delayed(400, 300);
+            anim.forward();
+            now.addAndGet(100);
+            anim.forward();
+            now.addAndGet(100);
+            anim.forward();
+
+            now.addAndGet(200);                          // 100ms after the wait ended
+
+            assertEquals(0.25, anim.value(), EPSILON);
+        }
+
+        @Test
+        void firstReverseWaitsAtOne() {
+            Animation anim = delayed(400, 200);
+            anim.reverse();
+
+            now.addAndGet(199);
+            assertEquals(1.0, anim.value(), EPSILON);
+
+            now.addAndGet(101);
+            assertEquals(0.75, anim.value(), EPSILON);
+        }
+
+        @Test
+        void reverseFromTheEndWaits() {
+            Animation anim = delayed(400, 200);
+            anim.forward();
+            now.addAndGet(1_000);                        // fully open, then idle
+
+            anim.reverse();
+            now.addAndGet(199);
+            assertEquals(1.0, anim.value(), EPSILON);
+
+            now.addAndGet(101);
+            assertEquals(0.75, anim.value(), EPSILON);
+        }
+
+        @Test
+        void turningAroundMidwaySkipsDelay() {
+            Animation anim = delayed(400, 200);
+            anim.forward();
+            now.addAndGet(320);                          // 0.3
+
+            anim.reverse();
+            now.addAndGet(60);
+
+            assertEquals(0.15, anim.value(), EPSILON);   // no wait
+        }
+
+        @Test
+        void pauseFreezesTheCountdown() {
+            Animation anim = delayed(400, 200);
+            anim.forward();
+            now.addAndGet(100);
+            anim.pause();
+            now.addAndGet(1_000);
+            anim.resume();
+
+            now.addAndGet(100);
+            assertEquals(0.0, anim.value(), EPSILON);    // the 1000ms pause didn't count
+
+            now.addAndGet(100);
+            assertEquals(0.25, anim.value(), EPSILON);
+        }
+
+        @Test
+        void seekSkipsDelay() {
+            Animation anim = delayed(400, 200);
+            anim.forward();
+
+            anim.seek(0.5);
+            assertEquals(0.5, anim.value(), EPSILON);
+
+            now.addAndGet(100);
+            assertEquals(0.75, anim.value(), EPSILON);
+        }
+
+        @Test
+        void zeroDurationWaitsForDelay() {
+            Animation anim = delayed(0, 200);
+            anim.forward();
+
+            now.addAndGet(199);
+            assertEquals(0.0, anim.value(), EPSILON);
+            assertFalse(anim.isFinished());
+
+            now.addAndGet(1);
+            assertEquals(1.0, anim.value(), EPSILON);
+            assertTrue(anim.isFinished());
+        }
+
+        @Test
+        void zeroDurationWaitsForDelayInReverse() {
+            Animation anim = delayed(0, 200);
+            anim.reverse();
+
+            now.addAndGet(199);
+            assertEquals(1.0, anim.value(), EPSILON);
+
+            now.addAndGet(1);
+            assertEquals(0.0, anim.value(), EPSILON);
+        }
+
+        @Test
+        void negativeDelayThrows() {
+            assertThrows(IllegalArgumentException.class, () -> Animation.builder().delay(-1));
+        }
+    }
+
+    @Nested
     class Progress {
 
         @Test

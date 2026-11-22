@@ -25,12 +25,14 @@ import java.util.function.LongSupplier;
 public class Animation {
 
     private final long durationMillis;
+    private final long delayMillis;
     private final Easing easing;
     private Direction direction;
     private final Stopwatch stopwatch;
 
     private Animation(Builder builder) {
         this.durationMillis = builder.durationMillis;
+        this.delayMillis = builder.delayMillis;
         this.easing = builder.easing;
         this.stopwatch = new Stopwatch(builder.clock);
         this.direction = Direction.FORWARD;
@@ -54,11 +56,18 @@ public class Animation {
      * running backwards, it turns around and continues from its current value
      * without jumping. If it is paused, it stays paused and plays forwards
      * after {@link #resume()}.
+     * <p>
+     * When starting from {@code 0.0}, it first waits for the
+     * {@linkplain Builder#delay(long) delay}. Calling it again while already
+     * playing forwards does nothing.
      */
     public void forward() {
+        if (stopwatch.isStarted() && direction == Direction.FORWARD) return;
+
         double p = stopwatch.isStarted() ? progress() : 0;
+        long wait = p == 0 ? delayMillis : 0;
         direction = Direction.FORWARD;
-        stopwatch.setElapsed(Math.round(p * durationMillis));
+        stopwatch.setElapsed(Math.round(p * durationMillis) - wait);
     }
 
     /**
@@ -68,11 +77,18 @@ public class Animation {
      * running forwards, it turns around and continues from its current value
      * without jumping. If it is paused, it stays paused and plays backwards
      * after {@link #resume()}.
+     * <p>
+     * When starting from {@code 1.0}, it first waits for the
+     * {@linkplain Builder#delay(long) delay}. Calling it again while already
+     * playing backwards does nothing.
      */
     public void reverse() {
+        if (stopwatch.isStarted() && direction == Direction.REVERSE) return;
+
         double p = stopwatch.isStarted() ? progress() : 1;
+        long wait = p == 1 ? delayMillis : 0;
         direction = Direction.REVERSE;
-        stopwatch.setElapsed(Math.round((1 - p) * durationMillis));
+        stopwatch.setElapsed(Math.round((1 - p) * durationMillis) - wait);
     }
 
     /**
@@ -131,7 +147,8 @@ public class Animation {
         if (!stopwatch.isStarted()) return 0.0;
 
         if (durationMillis == 0) {
-            return direction == Direction.FORWARD ? 1.0 : 0.0;
+            double progress = stopwatch.elapsed() < 0 ? 0.0 : 1.0;   // still waiting : done
+            return direction == Direction.FORWARD ? progress : 1 - progress;
         }
 
         double progress = (double) stopwatch.elapsed() / durationMillis;
@@ -214,6 +231,7 @@ public class Animation {
      */
     public static final class Builder {
         private long durationMillis = 400;
+        private long delayMillis = 0;
         private Easing easing = Easing.LINEAR;
         private LongSupplier clock = () -> System.nanoTime() / 1_000_000;
 
@@ -232,6 +250,30 @@ public class Animation {
         public Builder duration(long millis) {
             if (millis < 0) throw new IllegalArgumentException("Duration must be >= 0, got " + millis);
             this.durationMillis = millis;
+            return this;
+        }
+
+        /**
+         * Sets how long to wait before the animation starts moving.
+         * <p>
+         * The wait happens when {@link Animation#forward()} starts from
+         * {@code 0.0} or {@link Animation#reverse()} starts from {@code 1.0},
+         * including the first call. Turning around midway happens immediately,
+         * and calling {@code forward()} again while already playing forwards
+         * does not restart the wait.
+         * <p>
+         * During the wait, the value stays where it starts,
+         * {@link Animation#isRunning()} is {@code true}, and
+         * {@link Animation#pause()} freezes the countdown.
+         * {@link Animation#seek(double)} skips the rest of the wait.
+         * Default: 0.
+         *
+         * @param millis the delay in milliseconds, {@code 0} or more
+         * @return this builder
+         */
+        public Builder delay(long millis) {
+            if (millis < 0) throw new IllegalArgumentException("Delay must be >= 0, got " + millis);
+            this.delayMillis = millis;
             return this;
         }
 

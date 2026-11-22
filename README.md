@@ -1,6 +1,6 @@
-# spell-animations
+# Spell Animations
 
-A small Java tween library. It turns elapsed time into a value from `0.0` to `1.0`, with easing, smooth reversing and pause/resume.
+A small Java tween library. It turns elapsed time into a value from `0.0` to `1.0`, with easing, smooth reversing, delaying and pause/resume.
 
 The animation doesn't draw anything itself. You ask it for `value()` whenever you need it, usually once per frame, and use that number to move, fade or scale whatever you like. There are no threads, listeners or global managers. Each animation is a plain object, so you can have as many as you want.
 
@@ -59,6 +59,7 @@ Then add it to your project's `pom.xml`:
 | Builder method   | Default      | Notes                                                    |
 |------------------|--------------|----------------------------------------------------------|
 | `duration(ms)`   | `400`        | `0` jumps straight to the end. Negative values throw.    |
+| `delay(ms)`      | `0`          | See [Delay](#delay). Negative values throw.              |
 | `easing(easing)` | `LINEAR`     | See [Easings](#easings). `null` throws.                  |
 | `clock(clock)`   | system clock | See [Testing your animations](#testing-your-animations). |
 
@@ -87,6 +88,30 @@ menu.reverse();   // closes from where it is, no jump
 ```
 
 `forward()` plays towards `1.0` and `reverse()` plays towards `0.0`. Switching direction midway continues from the current value, so the way back takes only as long as the way there did.
+
+### Delay
+
+```java
+Animation tooltip = Animation.builder()
+        .duration(200)
+        .delay(500)
+        .build();
+
+tooltip.forward();   // waits 500 ms, then fades in over 200 ms
+```
+
+The delay applies when the animation starts from an end: `forward()` from `0.0` or `reverse()` from `1.0`. Turning around midway happens immediately, so a menu closed halfway through opening reacts right away. Calling `forward()` again while it's already playing forwards doesn't restart the wait, so it's safe to call every frame.
+
+During the wait, `value()` stays where it starts and `isRunning()` is `true`. `pause()` freezes the countdown, and `seek()` skips it.
+
+Different delays make a staggered list:
+
+```java
+for (int i = 0; i < items.size(); i++) {
+    items.get(i).anim = Animation.builder().delay(i * 50L).build();
+}
+items.forEach(item -> item.anim.forward());   // each starts 50 ms after the previous
+```
 
 ### Pause and resume
 
