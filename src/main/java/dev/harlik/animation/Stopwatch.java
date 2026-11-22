@@ -1,17 +1,13 @@
 package dev.harlik.animation;
 
-import lombok.Getter;
-
 import java.util.function.LongSupplier;
 
 final class Stopwatch {
 
     private final LongSupplier clock;
 
-    @Getter
     private boolean started;
     private long startTime;
-    @Getter
     private boolean paused;
     private long pausedAt;
 
@@ -44,6 +40,14 @@ final class Stopwatch {
             startTime += clock.getAsLong() - pausedAt;
             paused = false;
         }
+    }
+
+    boolean isStarted() {
+        return started;
+    }
+
+    boolean isPaused() {
+        return paused;
     }
 
 }

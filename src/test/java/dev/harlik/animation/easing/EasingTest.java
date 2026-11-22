@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.stream.Stream;
 
@@ -85,6 +86,31 @@ class EasingTest {
             double mirrored = 1 - Easing.EASE_IN.apply(1 - t);
             assertEquals(mirrored, Easing.EASE_OUT.apply(t), EPSILON, "at t=" + t);
         }
+    }
+
+    @ParameterizedTest(name = "x = {0}")
+    @ValueSource(doubles = {-0.1, 1.1, Double.NaN})
+    void cubicBezierRejectsX1OutsideZeroToOne(double x) {
+        assertThrows(IllegalArgumentException.class, () -> Easing.cubicBezier(x, 0, 0.5, 1));
+    }
+
+    @ParameterizedTest(name = "x = {0}")
+    @ValueSource(doubles = {-0.1, 1.1, Double.NaN})
+    void cubicBezierRejectsX2OutsideZeroToOne(double x) {
+        assertThrows(IllegalArgumentException.class, () -> Easing.cubicBezier(0.5, 0, x, 1));
+    }
+
+    @Test
+    void cubicBezierAcceptsXAtTheBounds() {
+        assertDoesNotThrow(() -> Easing.cubicBezier(0, 0, 1, 1));
+        assertDoesNotThrow(() -> Easing.cubicBezier(1, 0, 0, 1));
+    }
+
+    @Test
+    void cubicBezierAllowsYOutsideZeroToOne() {
+        Easing overshoot = Easing.cubicBezier(0.34, 1.56, 0.64, 1);   // overshoots past 1.0
+
+        assertTrue(overshoot.apply(0.6) > 1.0);
     }
 
     @Test

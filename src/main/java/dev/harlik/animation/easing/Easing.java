@@ -44,8 +44,13 @@ public interface Easing {
      * @param x2 time of the second control point, between {@code 0} and {@code 1}
      * @param y2 value of the second control point
      * @return the easing
+     * @throws IllegalArgumentException if {@code x1} or {@code x2} is outside
+     *         {@code 0..1}, which would make the curve go back in time
      */
     static Easing cubicBezier(double x1, double y1, double x2, double y2) {
+        if (!(x1 >= 0 && x1 <= 1)) throw new IllegalArgumentException("x1 must be between 0 and 1, got " + x1);
+        if (!(x2 >= 0 && x2 <= 1)) throw new IllegalArgumentException("x2 must be between 0 and 1, got " + x2);
+
         return t -> {
             if (t <= 0) return 0;
             if (t >= 1) return 1;
