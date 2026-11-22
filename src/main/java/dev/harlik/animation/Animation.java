@@ -111,6 +111,19 @@ public class Animation {
     }
 
     /**
+     * Puts the animation back to how it was before it was first started.
+     * <p>
+     * The value jumps to {@code 0.0} without animating, and the animation is no
+     * longer paused or reversed. The next {@link #forward()} or {@link #reverse()}
+     * starts it again as if it were new, including the
+     * {@linkplain Builder#delay(long) delay}.
+     */
+    public void reset() {
+        stopwatch.reset();
+        direction = Direction.FORWARD;
+    }
+
+    /**
      * Jumps to a point in the animation and keeps playing from there.
      * <p>
      * {@code progress} is how much of the duration has passed, before the

@@ -42,6 +42,11 @@ final class Stopwatch {
         }
     }
 
+    void reset() {
+        started = false;
+        paused = false;
+    }
+
     boolean isStarted() {
         return started;
     }

@@ -130,6 +130,15 @@ anim.value();       // the eased value at that point
 
 `seek()` and `progress()` use the same scale in both directions: `0.0` is the start and `1.0` is the end. Seeking keeps the current direction, and a paused animation stays paused. Values outside `0..1` are clamped. This is useful for scrubbing with a slider.
 
+### Reset
+
+```java
+anim.reset();       // back to "not started": value 0.0, not paused, not reversed
+anim.forward();     // plays from the start again, including the delay
+```
+
+Once an animation has finished going forwards, calling `forward()` again does nothing. Call `reset()` first to replay it. `reset()` jumps straight to `0.0` without animating; to animate back, use `reverse()`.
+
 ### Status
 
 ```java

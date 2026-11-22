@@ -411,6 +411,136 @@ class AnimationTest {
     }
 
     @Nested
+    class Reset {
+
+        @Test
+        void goesBackToNotStarted() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(200);                          // 0.5
+
+            anim.reset();
+
+            assertEquals(0.0, anim.value(), EPSILON);
+            assertEquals(0.0, anim.progress(), EPSILON);
+            assertFalse(anim.isRunning());
+            assertFalse(anim.isFinished());
+            assertFalse(anim.isPaused());
+            assertFalse(anim.isReversed());
+        }
+
+        @Test
+        void staysAtZeroAsTimePasses() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(200);
+
+            anim.reset();
+            now.addAndGet(1_000);
+
+            assertEquals(0.0, anim.value(), EPSILON);    // not playing until forward()
+        }
+
+        @Test
+        void clearsPause() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(120);
+            anim.pause();
+
+            anim.reset();
+            assertFalse(anim.isPaused());
+
+            anim.forward();
+            now.addAndGet(100);
+            assertEquals(0.25, anim.value(), EPSILON);   // runs, not frozen
+        }
+
+        @Test
+        void clearsReverse() {
+            Animation anim = linear(400);
+            anim.reverse();
+            now.addAndGet(100);                          // 0.75
+
+            anim.reset();
+
+            assertFalse(anim.isReversed());
+            assertEquals(0.0, anim.value(), EPSILON);    // jumps, doesn't animate
+        }
+
+        @Test
+        void forwardAfterResetStartsFromZero() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(1_000);                        // finished at 1.0
+
+            anim.reset();
+            anim.forward();
+            assertEquals(0.0, anim.value(), EPSILON);
+
+            now.addAndGet(100);
+            assertEquals(0.25, anim.value(), EPSILON);
+        }
+
+        @Test
+        void forwardRightAfterFinishingDoesNothingWithoutReset() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(1_000);
+
+            anim.forward();                              // already played forwards
+
+            assertEquals(1.0, anim.value(), EPSILON);    // this is why reset() exists
+        }
+
+        @Test
+        void reverseAfterResetStartsFromOne() {
+            Animation anim = linear(400);
+            anim.forward();
+            now.addAndGet(200);
+
+            anim.reset();
+            anim.reverse();
+            assertEquals(1.0, anim.value(), EPSILON);
+
+            now.addAndGet(100);
+            assertEquals(0.75, anim.value(), EPSILON);
+        }
+
+        @Test
+        void forwardAfterResetWaitsForDelayAgain() {
+            Animation anim = Animation.builder()
+                    .duration(400)
+                    .delay(200)
+                    .clock(now::get)
+                    .build();
+            anim.forward();
+            now.addAndGet(1_000);                        // waited, played, finished
+
+            anim.reset();
+            anim.forward();
+
+            now.addAndGet(199);
+            assertEquals(0.0, anim.value(), EPSILON);    // waiting again
+
+            now.addAndGet(101);
+            assertEquals(0.25, anim.value(), EPSILON);
+        }
+
+        @Test
+        void doesNothingBeforeStart() {
+            Animation anim = linear(400);
+
+            anim.reset();
+            assertEquals(0.0, anim.value(), EPSILON);
+
+            anim.forward();
+            now.addAndGet(100);
+            assertEquals(0.25, anim.value(), EPSILON);   // runs normally
+        }
+    }
+
+    @Nested
     class Progress {
 
         @Test
